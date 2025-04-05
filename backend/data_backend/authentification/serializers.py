@@ -1,0 +1,75 @@
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import authenticate
+
+class UserSerializer(serializers.ModelSerializer):
+    password=serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2=serializers.CharField(write_only=True,required=True)
+    class Meta:
+        model = User
+        fields = ["id",'username','password','password2','email','first_name','last_name']
+        extra_kwargs = {
+            'first_name':{"required":False},
+            'last_name':{"required":False},
+            'email':{"required":True}
+        }
+
+
+    def validate(self, attrs):
+        if attrs['password']!=attrs['password2']:
+             raise serializers.ValidationError({"password":"password fields didn't match"})
+        return attrs
+    def create(self,validated_data):
+        password2=validated_data.pop('password2',None)
+        print(validated_data)
+        user=User.objects.create_user(**validated_data)
+        return user
+    def delete(self,validate_data):
+        user=User.objects.get(username=validate_data['username'])
+        user.delete()
+        return user
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make the username field optional since we'll be using email
+        self.fields['username'].required = False
+        # Add email field
+        self.fields['email'] = serializers.EmailField(required=False)
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        username = attrs.get('username')
+        password = attrs.get('password')
+
+        # Check if either email or username is provided
+        if not (email or username):
+            raise serializers.ValidationError('Either email or username is required.')
+
+        # Find user by email or username
+        if email:
+            try:
+                user = User.objects.get(email=email)
+                # Important: Set the username in attrs since the parent class expects it
+                attrs['username'] = user.username
+            except User.DoesNotExist:
+                raise serializers.ValidationError('No user found with this email.')
+
+
+
+        if not password:
+            raise serializers.ValidationError('Password is required.')
+
+        # Now call the parent's validate method with the username set
+        return super().validate(attrs)
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = user.username
+        token['first_name']=user.first_name
+        token['last_name']=user.last_name
+        token['email']=user.email
+        return token
