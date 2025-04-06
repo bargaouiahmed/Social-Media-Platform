@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from .models import SecurityQuestion
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -73,3 +74,53 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['last_name']=user.last_name
         token['email']=user.email
         return token
+from rest_framework import serializers
+from .models import SecurityQuestion
+
+class SecurityQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SecurityQuestion
+        fields = ['question', 'answer']
+        extra_kwargs = {
+            'answer': {'write_only': True}  # For security, answers should never be returned in responses
+        }
+
+class CreateSecurityQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SecurityQuestion
+        fields = ['question', 'answer']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        # Check if user already has a security question
+        try:
+            security_question = SecurityQuestion.objects.get(user=user)
+            # Update existing
+            security_question.question = validated_data['question']
+            security_question.answer = validated_data['answer']
+            security_question.save()
+        except SecurityQuestion.DoesNotExist:
+            # Create new
+            security_question = SecurityQuestion.objects.create(
+                user=user,
+                **validated_data
+            )
+        return security_question
+
+class SecurityQuestionCheckSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+
+class SecurityAnswerSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    answer = serializers.CharField(required=True)
+
+class PasswordResetSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    answer = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"password": "Password fields didn't match"})
+        return attrs

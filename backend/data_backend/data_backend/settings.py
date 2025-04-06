@@ -27,7 +27,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["backend.bahwebdev.com","localhost"]
 import os
+# Email settings for development
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Template settings
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],  # Make sure this path is correct
+        'APP_DIRS': True,
+        # ... other template settings ...
+    },
+]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
