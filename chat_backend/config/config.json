@@ -1,0 +1,12 @@
+{
+  "development": {
+    "username": "chat_db_admin",
+    "password": "chat_db_admin",
+    "database": "chat_db",
+    "host": "localhost",
+    "dialect": "postgres",
+    "port": 5432,
+    "operatorsAliases": false,
+    "logging":false
+  }
+}

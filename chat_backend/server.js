@@ -1,34 +1,69 @@
 const express = require('express');
-const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors'); // Import CORS
+const sequelize = require('./models').sequelize;
+const routes = require('./routes');
+
 const app = express();
+const server = http.createServer(app);
 
-
-
+// Configure CORS
 const allowedOrigins = [
-  'http://localhost:5173',
-  'https://tempo.bahwebdev.com',
-  'http://127.0.0.1:5173', // Add this for alternative localhost
-  undefined // Allow server-to-server calls
+  "https://hacker.bahwebdev.com",
+  "http://localhost:5173",
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log('Incoming Origin:', origin); // Add this line
-
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
-  optionsSuccessStatus: 204
 };
 
+// Configure CORS
 app.use(cors(corsOptions));
+// Socket.IO CORS (updated to match Express CORS)
+const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 
-const port = 5000;
+// Middleware
+app.use(express.json());
 
-app.get('/get', (req, res) => res.send('Hello World!'));
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+// Test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Server is running on port 5000!' });
+});
+
+// Routes
+app.use('/api', routes);
+
+// Socket.IO Setup
+require('./socket')(io);
+
+// Start server
+sequelize.authenticate()
+  .then(() => {
+    console.log('✅ Database connected!');
+    server.listen(5000, () => {
+      console.log('🚀 Server running on http://localhost:5000');
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Database connection error:', err);
+  });

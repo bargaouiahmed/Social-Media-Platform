@@ -4,16 +4,19 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-django = "*"
 djangorestframework = "*"
 djangorestframework-simplejwt = "*"
-psycopg2-binary = "*"
 django-cors-headers = "*"
 django-dotenv = "*"
 django-filter = "*"
 pillow = "*"
 python-magic = "*"
 opencv-python = "*"
+daphne = "*"
+channels-postgres = "==1.0.6"
+channels = "==4.2.0"
+django = "==5.1"
+psycopg2-binary = "*"
 
 [dev-packages]
 

@@ -1,9 +1,12 @@
-import { djangoApi } from "../api";
+import { djangoApi, socketClient } from "../api";
 import { useNavigate } from "react-router-dom";
 import { dispatchAuthEvent, AUTH_EVENTS } from "./authEvents";
+
 export default function LogOutC() {
     const navigate=useNavigate()
     const logout = () => {
+        const userId = sessionStorage.getItem('user_id')
+        socketClient.emit('user_disconnected',userId )
         djangoApi.logout()
         dispatchAuthEvent(AUTH_EVENTS.LOGOUT)
         navigate('/login')

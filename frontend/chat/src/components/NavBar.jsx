@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import LogOutC from "./LogOutC";
 import { AUTH_EVENTS } from "./authEvents";
 
+
 export default function NavBar() {
   const [authed, setAuthed] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,6 +57,7 @@ export default function NavBar() {
           <NavLink onClick={() => navigate("/profile")} label="Profile" />
           <NavLink onClick={() => navigate("/users")} label="Community" />
           <NavLink onClick={() => navigate("/feed")} label="Feed" />
+            <NavLink onClick={()=>navigate("/chat")} label="Chat"/>
           <LogOutC />
         </div>
 
@@ -80,6 +82,8 @@ export default function NavBar() {
           <MobileNavLink onClick={() => { navigate("/profile"); setIsMenuOpen(false); }} label="Profile" />
           <MobileNavLink onClick={() => { navigate("/users"); setIsMenuOpen(false); }} label="Community" />
           <MobileNavLink onClick={() => { navigate("/feed"); setIsMenuOpen(false); }} label="Feed" />
+          <MobileNavLink onClick={()=>navigate("/chat")} label="Chat"/>
+
           <div className="pt-2 border-t border-gray-100">
             <LogOutC mobile />
           </div>

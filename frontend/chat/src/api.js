@@ -1,12 +1,20 @@
 import axios from "axios";
-
-const BACKEND_URL ="http://localhost:5000";
+import {io} from "socket.io-client"
+const BACKEND_URL =process.env.NODE_ENV == "production"?"https://backend_exp.bahwebdev.com":"http://localhost:5000";
 const DJANGO_URL =  process.env.NODE_ENV=="production"?"https://backend.bahwebdev.com":"http://localhost:8000";
 const axiosInstance = axios.create({
     baseURL:DJANGO_URL,
     headers:{
     }
 })
+const SOCKET_URL =
+process.env.NODE_ENV === "production"
+  ? "wss://backend_exp.bahwebdev.com" // Use "wss://" for production (secure WebSocket)
+  : "ws://localhost:5000"; // Use "ws://" for development
+
+const socket = io(SOCKET_URL);
+
+export const socketClient=socket
 
 
 axiosInstance.interceptors.request.use((config) => {
@@ -178,6 +186,37 @@ class DjangoApi {
             console.error(e)
         }
     }
+    async respondToQuestion(username, answer){
+        try{
+            const response = await authentificatedApi.post(this.url+"/api/user/verify-answer/",{
+                username:username,
+                answer:answer
+            })
+            console.log(response)
+            return response
+        }catch(e){
+            console.error(e)
+            throw e
+        }
+    }
+    async changePassword(username, answer, new_password, confirm_password){
+        try{
+            const response = await authentificatedApi.post(this.url+"/api/user/password-reset/",
+                {
+                    username:username,
+                    answer:answer,
+                    new_password:new_password,
+                    confirm_password:confirm_password
+                }
+            )
+            console.log(response)
+            return response
+        }
+        catch(e){
+            console.error(e)
+            throw e
+        }
+    }
     async acceptFriendRequest(request_id){
         try{
             const response = await authentificatedApi.post(this.url+"/api/relationships/"+request_id+"/accept/")
@@ -206,7 +245,41 @@ class DjangoApi {
 
 
 }
+async checkSecurityQuestion(username){
+    try{
+        const response = await authentificatedApi.post(this.url+"/api/user/check-security/",
+            {username}
+        )
+        console.log(response)
+        return response
+    }
+    catch(error){ // Changed 'e' to 'error' to match the variable used below
+        if (error.response?.status === 404) {
+            // Convert 404 to a specific error that we can handle
+            throw {
+                response: {
+                    status: 404,
+                    data: { message: "No security question found" }
+                }
+            };
+        }
+        throw error;
+    }
+}
+async createSecurityQuestion(question, answer){
+    try{
+        const response = await authentificatedApi.post(this.url+"/api/user/security-question/",{
+            question:question,
+            answer:answer
+        })
+        console.log(response)
+        return response
 
+    }
+    catch(e){
+        console.error(e)
+    }
+}
 async makePost(formData) {
     try {
         const response = await authentificatedApi.post(
@@ -399,10 +472,46 @@ class ExpressApi {
         this.url = BACKEND_URL;
     }
 
-    async capture() {
-        const response = await axios.get(this.url + "/get");
-        return response;
+    async createConversation(userIds){
+        const response = await axios.post(this.url+"/api/conversations",{
+            userIds:userIds
+        })
+        return response
     }
+    async verifyExistance(userIds){
+        try{
+            const response = await axios.post(this.url+"/api/conversations/verify", {
+                userIds:userIds
+            })
+            console.log(response)
+            return response
+        }
+        catch(e){
+            console.error(e)
+            try{
+                const response = await this.createConversation(userIds);
+                console.log(response)
+                return response
+            }
+            catch(e){
+                console.error(e)
+                return false
+            }
+        }
+
+    }
+    async getMessagesInAGivenConvo(conversationId){
+        try{
+            const response = await axios.get(this.url+'/api/conversations/'+conversationId+"/messages");
+            if (response?.data){
+                console.log(response)
+                return response.data
+            }
+        }catch(e){
+            console.error(e)
+        }
+    }
+
 }
 
 export const djangoApi = new DjangoApi();

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { djangoApi } from "../api";
-import { useNavigate } from "react-router-dom";
+import { djangoApi,socketClient } from "../api";
+import { useNavigate, Link } from "react-router-dom"; // Added Link import
 import { dispatchAuthEvent, AUTH_EVENTS } from "../components/authEvents";
-
+import { jwtDecode } from "jwt-decode";
 export default function Login() {
     const [formData, setFormData] = useState({
         username: "",
@@ -30,14 +30,14 @@ export default function Login() {
 
         try {
             const response = await djangoApi.login(formData);
-
             if (response && response.user && response.user.email) {
                 sessionStorage.setItem('email', response.user.email);
             } else {
                 sessionStorage.setItem('email', formData.username);
             }
-
             dispatchAuthEvent(AUTH_EVENTS.LOGIN);
+            const userId = jwtDecode(localStorage.getItem('access') || sessionStorage.getItem('access')).user_id
+            socketClient.emit("user_connected", userId)
             navigate('/profile');
         } catch (error) {
             console.error("Login error:", error);
@@ -95,6 +95,15 @@ export default function Login() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                     />
+                    {/* Added Forgot Password link */}
+                    <div className="mt-1 text-right">
+                        <Link
+                            to="/reset-password"
+                            className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="flex items-center">
