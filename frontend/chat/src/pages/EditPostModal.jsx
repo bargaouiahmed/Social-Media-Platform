@@ -21,6 +21,7 @@ export default function EditPostModal({
     const [deletingAttachments, setDeletingAttachments] = useState({});
     const fileInputRef = useRef(null);
     const modalRef = useRef(null);
+    const contentRef = useRef(null);
 
     // Close modal when clicking outside
     useEffect(() => {
@@ -35,6 +36,62 @@ export default function EditPostModal({
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [onClose]);
+
+    // Setup paste event listener for content area
+    useEffect(() => {
+        const handlePaste = async (e) => {
+            // Only process paste if focused in the content area
+            if (document.activeElement === contentRef.current ||
+                contentRef.current?.contains(document.activeElement)) {
+
+                const items = e.clipboardData?.items;
+                if (!items) return;
+
+                // Look for image items in the clipboard
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+
+                    // Handle image files
+                    if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault(); // Prevent default paste behavior
+
+                        // Get the blob from clipboard
+                        const blob = item.getAsFile();
+                        if (!blob) continue;
+
+                        // Create a filename with timestamp to prevent duplicates
+                        const originalExt = blob.name?.split('.').pop() || 'png';
+                        const filename = `pasted-image-${Date.now()}.${originalExt}`;
+
+                        // Create a new File object with a proper name
+                        const file = new File([blob], filename, { type: blob.type });
+
+                        // Upload the pasted file
+                        setIsUploading(true);
+                        try {
+                            const response = await onAddAttachment(file, currentPost.id);
+                            setCurrentPost(prev => ({
+                                ...prev,
+                                attachments: [...prev.attachments, response.data]
+                            }));
+                        } catch (error) {
+                            console.error("Error uploading pasted attachment:", error);
+                        } finally {
+                            setIsUploading(false);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Add paste event listener
+        window.addEventListener('paste', handlePaste);
+
+        // Cleanup event listener on unmount
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [currentPost.id, onAddAttachment]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -138,23 +195,35 @@ export default function EditPostModal({
                         />
                     </div>
 
-                    <div className="mb-4">
+                    <div className="mb-4" ref={contentRef}>
                         <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
                             Content
                         </label>
-                        <textarea
-                            id="content"
-                            value={editedContent}
-                            onChange={(e) => setEditedContent(e.target.value)}
-                            rows={6}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
+                        <div className="relative">
+                            <textarea
+                                id="content"
+                                value={editedContent}
+                                onChange={(e) => setEditedContent(e.target.value)}
+                                rows={6}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <div className="absolute bottom-2 right-2 text-gray-400 text-xs">
+                                Paste images with Ctrl+V / Cmd+V
+                            </div>
+                        </div>
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Add Attachment
-                        </label>
+                        <div className="flex items-center justify-between">
+                            <label className="block text-sm font-medium text-gray-700">
+                                Add Attachment
+                            </label>
+                            {isUploading && (
+                                <span className="text-sm text-blue-500 animate-pulse">
+                                    Uploading...
+                                </span>
+                            )}
+                        </div>
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -165,11 +234,11 @@ export default function EditPostModal({
                         />
                         <label
                             htmlFor="file-upload"
-                            className={`px-3 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 inline-block ${
+                            className={`mt-1 px-3 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 inline-block ${
                                 isUploading ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
                         >
-                            {isUploading ? 'Uploading...' : 'Select File'}
+                            Select File
                         </label>
                     </div>
 

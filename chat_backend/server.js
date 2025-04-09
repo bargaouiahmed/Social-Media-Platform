@@ -1,24 +1,30 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors'); // Import CORS
+const cors = require('cors');
 const sequelize = require('./models').sequelize;
 const routes = require('./routes');
-
 const app = express();
+const path = require('path');
 const server = http.createServer(app);
 
 // Configure CORS
 const allowedOrigins = [
   "https://hacker.bahwebdev.com",
   "http://localhost:5173",
+  "http://127.0.0.1:5173", // Add this for Vite default origin
+  "http://localhost:5000", // Optional: if you need to access from the server itself
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log('Not allowed by CORS:', origin); // Helpful for debugging
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -27,16 +33,11 @@ const corsOptions = {
 
 // Configure CORS
 app.use(cors(corsOptions));
-// Socket.IO CORS (updated to match Express CORS)
+
+// Socket.IO CORS configuration
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: allowedOrigins, // Simply pass the array directly
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -44,6 +45,9 @@ const io = new Server(server, {
 
 // Middleware
 app.use(express.json());
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Test route
 app.get('/api/test', (req, res) => {

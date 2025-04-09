@@ -67,6 +67,7 @@ SIMPLE_JWT = {
 }
 INSTALLED_APPS = [
     "django_filters",
+    "profiles",
     "posts",
     "socials",
     "authentification",

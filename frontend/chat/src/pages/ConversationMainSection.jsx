@@ -18,7 +18,11 @@ export default function ConversationMainSection({ conversationId }) {
 
   // Ensure we have a number for consistent comparisons
   const normalizedCurrentUserId = Number(currentUserId);
-
+  const handleDeleteMessage = (deletedMessageId) => {
+    setMessages(prevMessages =>
+      prevMessages.filter(message => message.id !== deletedMessageId)
+    );
+  };
   // Debug helper
   const logWithContext = (message, data) => {
     console.log(`[Convo:${conversationId}/User:${normalizedCurrentUserId}] ${message}`, data || '');
@@ -236,7 +240,7 @@ export default function ConversationMainSection({ conversationId }) {
           </div>
         ) : (
           messages.map((message) => (
-            <MessageShow key={message.id} message={message} />
+            <MessageShow key={message.id} message={message} onDelete={handleDeleteMessage}/>
           ))
         )}
         <div ref={messagesEndRef} />

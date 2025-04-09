@@ -15,6 +15,7 @@ import ResetPassword from './pages/ResetPassword'
 import UnauthProtectedRoute from './components/UnauthProtectedRoutes'
 import SpecialProtectedRoutes from './components/SpecialProtectedRoutes'
 import ChatPage from './pages/ChatPage'
+import DProfilePage from './pages/differentProfiles/DProfilePage'
 function App() {
   return (
     <>
@@ -36,6 +37,7 @@ function App() {
             <Route path="/users" element={<UsersPage/>}/>
             <Route path="/feed" element={<Feed/>}/>
             <Route path="/chat" element={<ChatPage/>}/>
+            <Route path='/profiles/:userId' element={<DProfilePage />}/>
             <Route path="/" element={<Navigate to="/profile"/>}/>
 
           </Route>

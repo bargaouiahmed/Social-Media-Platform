@@ -124,3 +124,17 @@ class PasswordResetSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['confirm_password']:
             raise serializers.ValidationError({"password": "Password fields didn't match"})
         return attrs
+class UserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email']
+
+    def validate_username(self, value):
+        # Skip validation if username is unchanged
+        if self.instance and self.instance.username == value:
+            return value
+
+        # Check if username is already taken
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value

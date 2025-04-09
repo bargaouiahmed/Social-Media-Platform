@@ -1,9 +1,19 @@
-const { Message, Conversation, Participant, AuthUser } = require('../models');
+const { Message, Conversation, Participant, AuthUser, MessageAttachment } = require('../models');
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
+const mkdirp = require('mkdirp');  // You'll need to install this: npm install mkdirp
+const writeFileAsync = util.promisify(fs.writeFile);
 
 // Track connections more accurately
 const userConnectionCounts = new Map(); // { userId: connectionCount }
 const socketToUserMap = new Map(); // { socketId: userId }
 const socketToConversationMap = new Map(); // { socketId: conversationId }
+
+// Define upload directory
+const UPLOAD_DIR = path.join(__dirname, '../uploads');
+// Ensure upload directory exists
+mkdirp.sync(UPLOAD_DIR);
 
 module.exports = (io) => {
     // Debug helper to get current state
@@ -94,28 +104,121 @@ module.exports = (io) => {
             logState(`LEAVE_CONVERSATION:${conversationId}`);
         });
 
+        // Enhanced new_message handler with file attachment support
         socket.on("new_message", async (data) => {
-            const { content, conversationId, userId } = data;
-            const participant = await Participant.findOne({
-                where: { userId, conversationId },
-                include: {
-                    model: AuthUser,
-                    as: "user",
-                    attributes: ['id', 'username', 'first_name', 'last_name', 'email']
+            try {
+                const { content, conversationId, userId, files } = data;
+
+                // Find the participant
+                const participant = await Participant.findOne({
+                    where: { userId, conversationId },
+                    include: {
+                        model: AuthUser,
+                        as: "user",
+                        attributes: ['id', 'username', 'first_name', 'last_name', 'email']
+                    }
+                });
+
+                if (!participant) {
+                    throw new Error(`User ${userId} is not a participant in conversation ${conversationId}`);
                 }
-            });
 
-            const message = await Message.create({
-                content,
-                participantId: participant.id
-            });
+                // Create message
+                const message = await Message.create({
+                    content,
+                    participantId: participant.id
+                });
 
-            io.to(conversationId).emit('receive_message', {
-                ...message.dataValues,
-                participant
-            });
+                // Process files if any
+                const attachments = [];
+                if (files && Array.isArray(files) && files.length > 0) {
+                    // Create conversation-specific directory
+                    const conversationDir = path.join(UPLOAD_DIR, `conversation-${conversationId}`);
+
+                    // FIX: Use sync version to ensure directory exists before writing files
+                    mkdirp.sync(conversationDir);
+
+                    for (const file of files) {
+                        // Extract file data
+                        const { filename, data, type, size } = file;
+                        // Generate unique filename to prevent collisions
+                        const uniqueFilename = `${Date.now()}-${filename}`;
+                        const filePath = path.join(conversationDir, uniqueFilename);
+
+                        // Convert base64 to buffer if data is base64 encoded
+                        let fileBuffer;
+                        if (typeof data === 'string' && data.startsWith('data:')) {
+                            // Extract base64 data from data URL
+                            const base64Data = data.split(',')[1];
+                            fileBuffer = Buffer.from(base64Data, 'base64');
+                        } else if (Buffer.isBuffer(data)) {
+                            fileBuffer = data;
+                        } else if (typeof data === 'string') {
+                            fileBuffer = Buffer.from(data, 'base64');
+                        } else {
+                            throw new Error('Invalid file data format');
+                        }
+
+                        // Write file to disk
+                        await writeFileAsync(filePath, fileBuffer);
+
+                        // Store file info in database
+                        const attachment = await MessageAttachment.create({
+                            messageId: message.id,
+                            filename: filename,
+                            filePath: path.relative(UPLOAD_DIR, filePath), // Store relative path
+                            fileType: type,
+                            fileSize: size
+                        });
+                        attachments.push(attachment);
+                    }
+                }
+
+                // Include attachments with message data
+                const messageWithDetails = {
+                    ...message.dataValues,
+                    participant,
+                    attachments
+                };
+
+                // Emit the message with attachments
+                io.to(conversationId).emit('receive_message', messageWithDetails);
+                console.log(`Message sent in conversation ${conversationId} with ${attachments.length} attachments`);
+
+            } catch (error) {
+                console.error('Error processing message with attachments:', error);
+                socket.emit('message_error', {
+                    error: error.message,
+                    timestamp: new Date()
+                });
+            }
         });
+        socket.on("attachment_uploaded", (data) => {
+            try {
+              const { messageId, filename, conversationId } = data;
 
+              // Validate required fields
+              if (!messageId || !filename || !conversationId) {
+                throw new Error('Missing required fields for attachment notification');
+              }
+
+              console.log(`Attachment uploaded: ${filename} for message ${messageId} in conversation ${conversationId}`);
+
+              // Broadcast to all clients in this conversation that the attachment is ready
+              io.to(conversationId).emit('attachment_upload_complete', {
+                messageId,
+                filename,
+                timestamp: new Date()
+              });
+
+            } catch (error) {
+              console.error('Error handling attachment notification:', error);
+              socket.emit('attachment_error', {
+                error: error.message,
+                timestamp: new Date()
+              });
+            }
+          });
         // Handle automatic disconnection
         socket.on('disconnect', () => {
             console.log('WebSocket client disconnected:', socket.id);
