@@ -344,7 +344,7 @@
       try {
         const response = await authentificatedApi.get(this.url + "/api/posts/user/" + userId + "/");
         console.log(response);
-        return response;
+        return response.data;
       } catch (e) {
         console.error(e);
       }

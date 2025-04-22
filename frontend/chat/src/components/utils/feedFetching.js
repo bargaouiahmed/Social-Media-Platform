@@ -6,7 +6,7 @@ export default async function feedFetching(friends){
     for (let friend of friends){
         let friendId=friend.id
         let friendPosts = await djangoApi.getSpecificUserPosts(friendId)
-        feed.push(...friendPosts.data   )
+        feed.push(...friendPosts   )
     }
     return feed
 }

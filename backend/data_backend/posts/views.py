@@ -42,6 +42,7 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Post.objects.all().select_related('author').prefetch_related(
             Prefetch('reaction_set', queryset=Reaction.objects.select_related('user'))
+            
         )
 
         if user_id := self.request.query_params.get('user_id'):

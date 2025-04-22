@@ -18,7 +18,7 @@ export default function ProfileShow({ profileData, setProfileData, reloadData })
 
   useEffect(() => {
     formatProfilePicUrl();
-  }, [profileData]);
+  }, []);
 
 // In ProfileShow.js
 const handleUploadSuccess = async (newUrl) => {
