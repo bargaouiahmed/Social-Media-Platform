@@ -1,56 +1,56 @@
-  import axios from "axios";
-  import { io } from "socket.io-client";
+import axios from "axios";
+import { io } from "socket.io-client";
 
-  const BACKEND_URL =
-    process.env.NODE_ENV === "production"
-      ? "https://backend_exp.bahwebdev.com"
-      : "http://localhost:5000";
-  const DJANGO_URL =
-    process.env.NODE_ENV === "production"
-      ? "https://backend.bahwebdev.com"
-      : "http://localhost:8000";
+const BACKEND_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://backend_exp.bahwebdev.com"
+    : "http://localhost:5000";
+const DJANGO_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://backend.bahwebdev.com"
+    : "http://localhost:8000";
 
-  const axiosInstance = axios.create({
-    baseURL: DJANGO_URL,
-    headers: {},
-  });
+const axiosInstance = axios.create({
+  baseURL: DJANGO_URL,
+  headers: {},
+});
 
-  const SOCKET_URL =
-    process.env.NODE_ENV === "production"
-      ? "wss://backend_exp.bahwebdev.com" // Use "wss://" for production (secure WebSocket)
-      : "ws://localhost:5000"; // Use "ws://" for development
+const SOCKET_URL =
+  process.env.NODE_ENV === "production"
+    ? "wss://backend_exp.bahwebdev.com" // Use "wss://" for production (secure WebSocket)
+    : "ws://localhost:5000"; // Use "ws://" for development
 
-  const socket = io(SOCKET_URL);
-  export const socketClient = socket;
+const socket = io(SOCKET_URL);
+export const socketClient = socket;
 
-  axiosInstance.interceptors.request.use((config) => {
-    const accessToken =
-      localStorage.getItem("access") || sessionStorage.getItem("access");
-    if (accessToken) {
-      config.headers["Authorization"] = "Bearer " + accessToken;
-    }
-    // Add Content-Type only for non-FormData requests
-    if (!(config.data instanceof FormData)) {
-      config.headers["Content-Type"] = "application/json";
-    }
-    return config;
-  });
+axiosInstance.interceptors.request.use((config) => {
+  const accessToken =
+    localStorage.getItem("access") || sessionStorage.getItem("access");
+  if (accessToken) {
+    config.headers["Authorization"] = "Bearer " + accessToken;
+  }
+  // Add Content-Type only for non-FormData requests
+  if (!(config.data instanceof FormData)) {
+    config.headers["Content-Type"] = "application/json";
+  }
+  return config;
+});
 
-  const authentificatedApi = axiosInstance;
+const authentificatedApi = axiosInstance;
 
-  class DjangoApi {
-    constructor() {
-      this.url = DJANGO_URL;
-    }
+class DjangoApi {
+  constructor() {
+    this.url = DJANGO_URL;
+  }
 
-    async register(formData) {
-      const response = await axios.post(this.url + "/api/user/register/", formData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      return response;
-    }
+  async register(formData) {
+    const response = await axios.post(this.url + "/api/user/register/", formData, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    return response;
+  }
 
     async login(formData) {
       const rememberMe = formData.rememberMe;
@@ -418,6 +418,16 @@
         console.error(e);
       }
     }
+    async deleteComment(commentId) {
+      try {
+        const response = await authentificatedApi.delete(this.url + "/api/comments/" + commentId+"/");
+        console.log(response);
+        return response;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
 
     async getReactionsToPost(post) {
       try {
